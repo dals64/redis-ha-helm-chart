@@ -21,6 +21,8 @@ spec:
             - "/etc/redis/sentinel.conf"
           ports:
             - containerPort: 26379
+          resources:
+            {{- toYaml .Values.sentinel.resources | nindent 12 }}
           volumeMounts:
             - name: sentinel-config
               mountPath: /etc/redis
