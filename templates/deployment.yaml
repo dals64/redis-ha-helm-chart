@@ -1,0 +1,74 @@
+{{- if .Values.sentinel.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "redis-cluster-ha.fullname" . }}-sentinel
+spec:
+  replicas: {{ .Values.sentinel.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "redis-cluster-ha.fullname" . }}-sentinel
+  template:
+    metadata:
+      labels:
+        app: {{ include "redis-cluster-ha.fullname" . }}-sentinel
+    spec:
+      containers:
+        - name: sentinel
+          image: "{{ .Values.sentinel.image.repository }}:{{ .Values.sentinel.image.tag }}"
+          command:
+            - "redis-sentinel"
+            - "/etc/redis/sentinel.conf"
+          ports:
+            - containerPort: 26379
+          volumeMounts:
+            - name: sentinel-config
+              mountPath: /etc/redis
+      volumes:
+        - name: sentinel-config
+          configMap:
+            name: {{ include "redis-cluster-ha.fullname" . }}-config
+            items:
+              - key: sentinel.conf
+                path: sentinel.conf
+{{- end }}
+
+
+---
+
+
+{{- if .Values.exporter.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "redis-cluster-ha.fullname" . }}-exporter
+  labels:
+    app: {{ include "redis-cluster-ha.name" . }}-exporter
+spec:
+  replicas: {{ .Values.exporter.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "redis-cluster-ha.name" . }}-exporter
+  template:
+    metadata:
+      labels:
+        app: {{ include "redis-cluster-ha.name" . }}-exporter
+    spec:
+      containers:
+        - name: redis-exporter
+          image: "{{ .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag }}"
+          imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.exporter.service.port }}
+          env:
+            - name: REDIS_ADDR
+              value: {{ .Values.exporter.redisAddress | quote }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "redis-cluster-ha.fullname" . }}-auth
+                  key: password
+          resources:
+            {{- toYaml .Values.exporter.resources | nindent 12 }}
+{{- end }}

@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redis-cluster-ha.fullname" . }}
+  labels:
+    {{- include "redis-cluster-ha.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "redis-cluster-ha.selectorLabels" . | nindent 4 }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redis-cluster-ha.fullname" . }}
+  labels:
+    app: {{ include "redis-cluster-ha.fullname" . }}-sentinel
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.sentinelPort }}
+      targetPort: http
+      protocol: TCP
+      name: sentinel
+  selector:
+    {{- include "redis-cluster-ha.selectorLabels" . | nindent 4 }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "redis-cluster-ha.fullname" . }}-exporter
+  labels:
+    app.kubernetes.io/name: {{ include "redis-cluster-ha.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: {{ .Values.exporter.service.port }}
+      targetPort: {{ .Values.exporter.service.port }}
+  selector:
+    app: {{ include "redis-cluster-ha.name" . }}-exporter
